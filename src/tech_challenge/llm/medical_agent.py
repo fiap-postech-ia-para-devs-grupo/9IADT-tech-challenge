@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from google import genai
 from google.genai import types
 
-from llm.prompts import (
+from tech_challenge.llm.prompts import (
     CHAT_PROMPT,
     MEDICAL_PROMPT_V3,
     SYSTEM_INSTRUCTION,

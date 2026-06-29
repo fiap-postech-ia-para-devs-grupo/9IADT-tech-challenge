@@ -50,7 +50,7 @@ Isso sobe a API (`http://localhost:8000`) e o Streamlit (`http://localhost:8501`
 #### API (FastAPI)
 
 ```bash
-uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn tech_challenge.adapters.api:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Acesse a documentação em `http://localhost:8000/docs`.
@@ -60,7 +60,7 @@ Acesse a documentação em `http://localhost:8000/docs`.
 Requer a API rodando em paralelo.
 
 ```bash
-uv run streamlit run app.py
+uv run streamlit run src/tech_challenge/presentation/streamlit_app.py
 ```
 
 Acesse `http://localhost:8501`.
@@ -73,8 +73,8 @@ uv run jupyter notebook
 
 | Notebook | Descrição |
 | :--- | :--- |
-| `tech_challenge_fase1.ipynb` | Análise exploratória, baselines KNN/RF e visão computacional |
-| `tech_challenge_fase2.ipynb` | Algoritmos Genéticos, integração LLM e pipeline completo |
+| `notebooks/tech_challenge_fase1.ipynb` | Análise exploratória, baselines KNN/RF e visão computacional |
+| `notebooks/tech_challenge_fase2.ipynb` | Algoritmos Genéticos, integração LLM e pipeline completo |
 
 ## Devcontainer (VS Code)
 
@@ -83,11 +83,15 @@ Abra o repositório no VS Code e aceite a sugestão de **Reopen in Container**. 
 ## Estrutura do projeto
 
 ```text
-├── api/            # FastAPI — endpoints REST
-├── llm/            # Agente LLM (Gemini) e pipeline de inferência
-├── src/            # Utilitários compartilhados
-├── data/           # Dataset Wisconsin Breast Cancer
-├── model/          # Modelo treinado (.pkl)
-├── results/        # Resultados do pipeline
-└── app.py          # Interface Streamlit
+├── src/tech_challenge/          # Código runtime do projeto
+│   ├── adapters/                # Adaptadores FastAPI
+│   ├── presentation/            # Interface Streamlit
+│   ├── llm/                     # Prompts e adaptador Gemini
+│   ├── diagnosis.py             # Módulo de diagnóstico
+│   ├── explanation.py           # Módulo de explicação
+│   └── experiments.py           # Resultados de experimentos para apresentação
+├── notebooks/                   # Notebooks de estudo e exploração
+├── data/                        # Dataset Wisconsin Breast Cancer
+├── model/                       # Modelo treinado (.pkl)
+└── results/                     # Resultados gerados pelo pipeline
 ```

@@ -10,7 +10,7 @@ Projeto: Tech Challenge - Fase 2
 import joblib
 import pandas as pd
 
-from llm.medical_agent import DiagnosisInput, MedicalDiagnosisAgent
+from tech_challenge.llm.medical_agent import DiagnosisInput, MedicalDiagnosisAgent
 
 
 class DiagnosisPipeline:
@@ -30,10 +30,11 @@ class DiagnosisPipeline:
         X = pd.DataFrame([raw_features])[self.features]
 
         X_sc = self.scaler.transform(X)
+        X_sc_df = pd.DataFrame(X_sc, columns=self.features)
 
-        pred = int(self.model.predict(X_sc)[0])
+        pred = int(self.model.predict(X_sc_df)[0])
 
-        proba_vec = self.model.predict_proba(X_sc)[0]
+        proba_vec = self.model.predict_proba(X_sc_df)[0]
         proba = float(proba_vec[pred])
 
         feats_sc = dict(zip(self.features, X_sc[0]))
@@ -67,8 +68,9 @@ class DiagnosisPipeline:
 
         X = pd.DataFrame([raw_features])[self.features]
         X_sc = self.scaler.transform(X)
+        X_sc_df = pd.DataFrame(X_sc, columns=self.features)
 
-        pred = int(self.model.predict(X_sc)[0])
-        proba = float(self.model.predict_proba(X_sc)[0][pred])
+        pred = int(self.model.predict(X_sc_df)[0])
+        proba = float(self.model.predict_proba(X_sc_df)[0][pred])
 
         return {"prediction": pred, "probability": proba}

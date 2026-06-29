@@ -7,6 +7,7 @@
   "python.languageServer": "Pylance",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.ignore": ["**/*.ipynb"],
 
   // Ruff as linter + formatter
   "editor.formatOnSave": true,
