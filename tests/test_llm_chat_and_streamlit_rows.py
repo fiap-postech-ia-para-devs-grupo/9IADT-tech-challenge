@@ -3,11 +3,20 @@ from __future__ import annotations
 import unittest
 from typing import Any, cast
 
+import pandas as pd
+
 from tech_challenge.adapters.api import ag_results, patients_metadata
 from tech_challenge.experiments import load_ag_results
 from tech_challenge.explanation import chat_about_diagnosis
 from tech_challenge.llm.medical_agent import MedicalDiagnosisAgent
-from tech_challenge.presentation.formatting import ag_result_rows, chat_answer_text
+from tech_challenge.presentation.formatting import (
+    ag_result_rows,
+    chat_answer_text,
+    filter_patient_table,
+    paginate_patient_table,
+    patient_table_rows,
+    sort_patient_table,
+)
 
 
 class _FakeResponse:
@@ -98,6 +107,80 @@ class PatientMetadataTests(unittest.TestCase):
         response = patients_metadata()
 
         self.assertEqual(response.model_dump(), {"count": 569, "min_index": 0, "max_index": 568})
+
+
+class PatientTableTests(unittest.TestCase):
+    def test_patient_table_rows_exposes_main_columns_with_dataset_index(self) -> None:
+        dataset = pd.DataFrame(
+            [
+                {
+                    "id": 10,
+                    "diagnosis": "M",
+                    "radius_mean": 1.1,
+                    "texture_mean": 2.2,
+                    "perimeter_mean": 3.3,
+                    "area_mean": 4.4,
+                    "concavity_mean": 5.5,
+                },
+                {
+                    "id": 20,
+                    "diagnosis": "B",
+                    "radius_mean": 6.6,
+                    "texture_mean": 7.7,
+                    "perimeter_mean": 8.8,
+                    "area_mean": 9.9,
+                    "concavity_mean": 10.1,
+                },
+            ]
+        )
+
+        rows = patient_table_rows(dataset, min_index=1, max_index=1)
+
+        self.assertEqual(rows.to_dict("records")[0]["Índice"], 1)
+        self.assertEqual(rows.to_dict("records")[0]["Diagnóstico real"], "Benigno")
+        self.assertEqual(
+            rows.columns.tolist(),
+            [
+                "Índice",
+                "ID",
+                "Diagnóstico real",
+                "Raio médio",
+                "Textura média",
+                "Perímetro médio",
+                "Área média",
+                "Concavidade média",
+            ],
+        )
+
+    def test_patient_table_searches_only_by_id(self) -> None:
+        rows = pd.DataFrame(
+            [
+                {"Índice": 0, "ID": 10, "Diagnóstico real": "Maligno", "Raio médio": 3.0},
+                {"Índice": 1, "ID": 20, "Diagnóstico real": "Benigno", "Raio médio": 1.0},
+                {"Índice": 2, "ID": 30, "Diagnóstico real": "Benigno", "Raio médio": 2.0},
+            ]
+        )
+
+        filtered_by_diagnosis = filter_patient_table(rows, "benigno")
+        filtered_by_id = filter_patient_table(rows, "20")
+
+        self.assertTrue(filtered_by_diagnosis.empty)
+        self.assertEqual(filtered_by_id["Índice"].tolist(), [1])
+
+    def test_patient_table_sort_and_paginate(self) -> None:
+        rows = pd.DataFrame(
+            [
+                {"Índice": 0, "ID": 10, "Diagnóstico real": "Maligno", "Raio médio": 3.0},
+                {"Índice": 1, "ID": 20, "Diagnóstico real": "Benigno", "Raio médio": 1.0},
+                {"Índice": 2, "ID": 30, "Diagnóstico real": "Benigno", "Raio médio": 2.0},
+            ]
+        )
+
+        sorted_rows = sort_patient_table(rows, "Raio médio", ascending=False)
+        page = paginate_patient_table(sorted_rows, page=1, page_size=1)
+
+        self.assertEqual(sorted_rows["Índice"].tolist(), [0, 2, 1])
+        self.assertEqual(page["Índice"].tolist(), [0])
 
 
 if __name__ == "__main__":

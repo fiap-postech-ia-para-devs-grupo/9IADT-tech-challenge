@@ -8,7 +8,15 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from tech_challenge.presentation.formatting import ag_result_rows, chat_answer_text
+from tech_challenge.paths import BREAST_CANCER_DATASET
+from tech_challenge.presentation.formatting import (
+    ag_result_rows,
+    chat_answer_text,
+    filter_patient_table,
+    paginate_patient_table,
+    patient_table_rows,
+    sort_patient_table,
+)
 
 API_URL = os.getenv("TECH_CHALLENGE_API_URL", "http://localhost:8000")
 
@@ -46,28 +54,7 @@ def _diagnosis_screen() -> None:
         st.error(f"Não foi possível carregar os pacientes da API: {exc}")
         return
 
-    patient_index: int = (
-        st.selectbox(
-            "Selecionar paciente (índice do dataset)",
-            range(metadata["min_index"], metadata["max_index"] + 1),
-        )
-        or metadata["min_index"]
-    )  # type: ignore[assignment]
-
-    if st.button("Executar Diagnóstico"):
-        with st.spinner("Rodando modelo..."):
-            try:
-                resp = requests.post(f"{API_URL}/diagnose", json={"patient_index": patient_index}, timeout=30)
-                resp.raise_for_status()
-            except requests.HTTPError as exc:
-                st.error(_api_error_message(exc.response))
-                return
-            except requests.RequestException as exc:
-                st.error(f"Não foi possível conectar ao serviço: {exc}")
-                return
-            st.session_state.diagnosis = resp.json()
-            st.session_state.llm_explanation = None
-            st.session_state.chat_history = []
+    _patient_selection_table(metadata)
 
     if st.session_state.diagnosis:
         diagnosis: dict[str, Any] = st.session_state.diagnosis
@@ -75,7 +62,7 @@ def _diagnosis_screen() -> None:
         st.markdown(f"### Resultado: :{color}[{diagnosis['prediction']}]")
         st.progress(diagnosis["confidence"], text=f"Confiança: {diagnosis['confidence']:.0%}")
 
-        st.subheader("Top features")
+        st.subheader("Principais atributos")
         features = diagnosis["top_features"]
         df = pd.DataFrame(features)
         fig, ax = plt.subplots()
@@ -84,6 +71,133 @@ def _diagnosis_screen() -> None:
         ax.set_xlabel("Impacto no modelo")
         ax.axvline(0, color="black", linewidth=0.8)
         st.pyplot(fig)
+
+
+@st.cache_data
+def _load_patient_dataset() -> pd.DataFrame:
+    return pd.read_csv(BREAST_CANCER_DATASET).drop(columns=["Unnamed: 32"], errors="ignore")
+
+
+def _patient_selection_table(metadata: dict[str, int]) -> None:
+    st.subheader("Selecionar paciente")
+
+    rows = patient_table_rows(_load_patient_dataset(), metadata["min_index"], metadata["max_index"])
+
+    query = st.text_input("Buscar por ID", placeholder="Digite o ID do paciente")
+    if "patient_table_sort_column" not in st.session_state:
+        st.session_state.patient_table_sort_column = "Índice"
+    if "patient_table_sort_ascending" not in st.session_state:
+        st.session_state.patient_table_sort_ascending = True
+    if "patient_table_page_size" not in st.session_state:
+        st.session_state.patient_table_page_size = 25
+    if "patient_table_page" not in st.session_state:
+        st.session_state.patient_table_page = 1
+    if st.session_state.get("patient_table_query") != query:
+        st.session_state.patient_table_query = query
+        st.session_state.patient_table_page = 1
+
+    filtered_rows = filter_patient_table(rows, query)
+    sorted_rows = sort_patient_table(
+        filtered_rows,
+        st.session_state.patient_table_sort_column,
+        bool(st.session_state.patient_table_sort_ascending),
+    )
+
+    page_size = int(st.session_state.patient_table_page_size)
+    total_rows = len(sorted_rows)
+    total_pages = max(1, (total_rows + page_size - 1) // page_size)
+    st.session_state.patient_table_page = min(st.session_state.patient_table_page, total_pages)
+
+    current_page = int(st.session_state.patient_table_page)
+    page_rows = paginate_patient_table(sorted_rows, current_page, page_size)
+    st.caption(f"{total_rows} pacientes encontrados")
+
+    if page_rows.empty:
+        st.info("Nenhum paciente encontrado para a busca informada.")
+        return
+
+    widths = [0.7, 1, 1, 1, 1, 1, 1, 1, 1]
+    headers = page_rows.columns.tolist() + ["Ação"]
+    header_cols = st.columns(widths)
+    for column, header in zip(header_cols, headers):
+        if header == "Ação":
+            column.markdown("**Ação**")
+            continue
+        sort_suffix = _sort_suffix(header)
+        if column.button(f"{header}{sort_suffix}", key=f"sort_patient_{header}", use_container_width=True):
+            _toggle_patient_sort(header)
+            st.rerun()
+
+    for _, row in page_rows.iterrows():
+        row_cols = st.columns(widths)
+        for column, value in zip(row_cols[:-1], row):
+            column.write(_format_patient_cell(value))
+
+        patient_index = int(row["Índice"])
+        if row_cols[-1].button("Selecionar", key=f"select_patient_{patient_index}"):
+            _run_diagnosis(patient_index)
+
+    _patient_table_footer(total_pages, total_rows)
+
+
+def _sort_suffix(header: str) -> str:
+    if st.session_state.patient_table_sort_column != header:
+        return ""
+    return " ↑" if st.session_state.patient_table_sort_ascending else " ↓"
+
+
+def _toggle_patient_sort(header: str) -> None:
+    if st.session_state.patient_table_sort_column == header:
+        st.session_state.patient_table_sort_ascending = not st.session_state.patient_table_sort_ascending
+        return
+    st.session_state.patient_table_sort_column = header
+    st.session_state.patient_table_sort_ascending = True
+    st.session_state.patient_table_page = 1
+
+
+def _patient_table_footer(total_pages: int, total_rows: int) -> None:
+    st.divider()
+    summary_col, page_size_col, prev_col, next_col = st.columns([2, 1.2, 1, 1])
+    summary_col.caption(f"Página {st.session_state.patient_table_page} de {total_pages} · {total_rows} pacientes")
+    selected_page_size = page_size_col.selectbox(
+        "Linhas por página",
+        [10, 25, 50, 100],
+        index=[10, 25, 50, 100].index(int(st.session_state.patient_table_page_size)),
+        key="patient_table_page_size_select",
+    )
+    if int(selected_page_size) != int(st.session_state.patient_table_page_size):
+        st.session_state.patient_table_page_size = int(selected_page_size)
+        st.session_state.patient_table_page = 1
+        st.rerun()
+    if prev_col.button("Anterior", disabled=st.session_state.patient_table_page <= 1):
+        st.session_state.patient_table_page -= 1
+        st.rerun()
+    if next_col.button("Próxima", disabled=st.session_state.patient_table_page >= total_pages):
+        st.session_state.patient_table_page += 1
+        st.rerun()
+
+
+def _format_patient_cell(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:.3f}"
+    return str(value)
+
+
+def _run_diagnosis(patient_index: int) -> None:
+    with st.spinner("Rodando modelo..."):
+        try:
+            resp = requests.post(f"{API_URL}/diagnose", json={"patient_index": patient_index}, timeout=30)
+            resp.raise_for_status()
+        except requests.HTTPError as exc:
+            st.error(_api_error_message(exc.response))
+            return
+        except requests.RequestException as exc:
+            st.error(f"Não foi possível conectar ao serviço: {exc}")
+            return
+        st.session_state.diagnosis = resp.json()
+        st.session_state.selected_patient_index = patient_index
+        st.session_state.llm_explanation = None
+        st.session_state.chat_history = []
 
 
 def _explanation_screen() -> None:
