@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from tech_challenge.diagnosis import DiagnosisResult, FeatureImpact
 from tech_challenge.llm.medical_agent import DiagnosisInput, MedicalDiagnosisAgent
 
-DISCLAIMER = "Este diagnostico e um apoio computacional. A decisao clinica final e responsabilidade do medico."
+DISCLAIMER = "Este diagnóstico é um apoio computacional. A decisão clínica final é responsabilidade do médico."
 FeaturePayloadValue = str | int | float
 
 

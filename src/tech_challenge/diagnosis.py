@@ -106,8 +106,7 @@ class DiagnosisModule:
         coefficients = getattr(self.model, "coef_", None)
         if coefficients is not None and len(coefficients) > 0:
             impacts = {
-                feature: float(coef) * features_scaled[feature]
-                for feature, coef in zip(self.features, coefficients[0])
+                feature: float(coef) * features_scaled[feature] for feature, coef in zip(self.features, coefficients[0])
             }
         else:
             impacts = features_scaled

@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from fastapi.testclient import TestClient
-
-from tech_challenge.adapters.api import app
+from tech_challenge.adapters.api import ag_results, patients_metadata
 from tech_challenge.experiments import load_ag_results
 from tech_challenge.explanation import chat_about_diagnosis
 from tech_challenge.llm.medical_agent import MedicalDiagnosisAgent
-from tech_challenge.presentation.streamlit_app import _ag_result_rows, _chat_answer_text
+from tech_challenge.presentation.formatting import ag_result_rows, chat_answer_text
 
 
 class _FakeResponse:
@@ -52,12 +50,12 @@ class ChatParsingTests(unittest.TestCase):
         self.assertEqual(result.answer, "Texto de chat.")
 
     def test_streamlit_chat_answer_text_extracts_json_string(self) -> None:
-        self.assertEqual(_chat_answer_text('{"resposta": "Texto de chat."}'), "Texto de chat.")
+        self.assertEqual(chat_answer_text('{"resposta": "Texto de chat."}'), "Texto de chat.")
 
 
 class AGResultRowsTests(unittest.TestCase):
     def test_ag_table_columns_are_arrow_friendly_strings(self) -> None:
-        rows = _ag_result_rows(
+        rows = ag_result_rows(
             [
                 {
                     "name": "Exp",
@@ -86,12 +84,9 @@ class AGResultsTests(unittest.TestCase):
         self.assertAlmostEqual(results.experiments[0].test_metrics["f1"], 0.9756)
 
     def test_api_ag_results_exposes_expanded_artifact_shape(self) -> None:
-        client = TestClient(app)
+        response = ag_results()
 
-        response = client.get("/ag-results")
-
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
+        payload = response.model_dump()
         self.assertEqual(payload["best_config"]["model_type"], "logreg")
         self.assertIn("baseline", payload)
         self.assertIn("test_metrics", payload["experiments"][0])
@@ -99,12 +94,9 @@ class AGResultsTests(unittest.TestCase):
 
 class PatientMetadataTests(unittest.TestCase):
     def test_api_patient_metadata_comes_from_dataset(self) -> None:
-        client = TestClient(app)
+        response = patients_metadata()
 
-        response = client.get("/patients/metadata")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"count": 569, "min_index": 0, "max_index": 568})
+        self.assertEqual(response.model_dump(), {"count": 569, "min_index": 0, "max_index": 568})
 
 
 if __name__ == "__main__":

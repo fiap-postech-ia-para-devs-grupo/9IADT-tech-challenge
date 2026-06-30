@@ -96,8 +96,8 @@ Abra o repositório no VS Code e aceite a sugestão de **Reopen in Container**. 
 └── results/                     # Resultados gerados pelo pipeline
 ```
 
-## Atualizacao dos resultados do AG
+## Atualização dos resultados do AG
 
-A tela de resultados do Algoritmo Genetico consome `results/ag_experiment_results.json`. Esse arquivo e um artefato congelado das saidas executadas em `notebooks/tech_challenge_fase2.ipynb`, principalmente as secoes de execucao dos experimentos, comparacao e persistencia do melhor modelo.
+A tela de resultados do Algoritmo Genético consome `results/ag_experiment_results.json`. Esse arquivo é um artefato congelado das saídas executadas em `notebooks/tech_challenge_fase2.ipynb`, principalmente as seções de execução dos experimentos, comparação e persistência do melhor modelo.
 
-Quando os experimentos forem alterados, execute novamente o notebook e atualize `results/ag_experiment_results.json` com os novos valores finais. A API e o Streamlit apenas carregam esse artefato; eles nao reimplementam o motor do AG.
+Quando os experimentos forem alterados, execute novamente o notebook e atualize `results/ag_experiment_results.json` com os novos valores finais. A API e o Streamlit apenas carregam esse artefato; eles não reimplementam o motor do AG.
